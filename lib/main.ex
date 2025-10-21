@@ -1,5 +1,10 @@
 defmodule Server do
   use Application
+  alias Server.{
+    Connection,
+    Request,
+    Router
+  }
 
   def start(_type, _args) do
     Supervisor.start_link([{Task, fn -> Server.listen() end}], strategy: :one_for_one)
@@ -11,10 +16,38 @@ defmodule Server do
 
     # Since the tester restarts your program quite often, setting SO_REUSEADDR
     # ensures that we don't run into 'Address already in use' errors
-    {:ok, socket} = :gen_tcp.listen(4221, [:binary, active: false, reuseaddr: true])
+    {:ok, listen_socket} = :gen_tcp.listen(4221, [:binary, packet: :line, active: false, reuseaddr: true])
+    loop_acceptor(listen_socket)
+  end
+
+  defp loop_acceptor(socket) do
     {:ok, client} = :gen_tcp.accept(socket)
-    :ok = :gen_tcp.send(client, "HTTP/1.1 200 OK\r\n\r\n")
+
+    client
+    |> Connection.new()
+    |> serve()
+    |> Request.cast_to_request()
+    |> Router.route()
+
     :gen_tcp.close(client)
+
+    loop_acceptor(socket)
+  end
+
+  defp serve(%Connection{client: socket, raw_request: lines} = conn) do
+    new_line = read_line(socket)
+    conn = %{conn | raw_request: [new_line | lines]}
+
+    case new_line do
+      "\r\n" -> conn
+      _ -> serve(conn)
+    end
+  end
+
+  # Note: passing length=0 (2nd arg) to recv means all available bytes are returned
+  defp read_line(socket) do
+    {:ok, data} = :gen_tcp.recv(socket, 0)
+    data
   end
 end
 
