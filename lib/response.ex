@@ -16,14 +16,6 @@ defmodule Server.Response do
     {code, desc} = Map.fetch!(@status, status)
 
     # TODO: ideally, don't hardcode content type here
-    :ok =
-      :gen_tcp.send(
-        client,
-        "HTTP/1.1 #{code} #{desc}\r\n
-        Content-Type: text/plain\r\n
-        Content-Length: #{String.length(body)}\r\n
-        \r\n
-        #{body}"
-      )
+    :ok = :gen_tcp.send(client,"HTTP/1.1 #{code} #{desc}\r\nContent-Type: text/plain\r\nContent-Length: #{String.length(body)}\r\n\r\n#{body}")
   end
 end
