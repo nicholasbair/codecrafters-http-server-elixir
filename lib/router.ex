@@ -10,7 +10,7 @@ defmodule Server.Router do
   def route(%Connection{request: %{request_target: path}} = conn) do
     cond do
       String.match?(path, ~r/\/echo/) -> EchoController.echo(conn)
-      String.match?(path, ~r/\//) -> PageController.index(conn)
+      String.match?(path, ~r/^\/$/) -> PageController.index(conn)
       true -> Response.send(conn, :not_found)
     end
   end
