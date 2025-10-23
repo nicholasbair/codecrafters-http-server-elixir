@@ -19,7 +19,8 @@ defmodule Server.Request do
     headers: []
   ]
 
-  def cast_to_request(%Connection{raw_request: lines} = conn) do
+  @spec parse_request(Connection.t()) :: Connection.t()
+  def parse_request(%Connection{raw_request: lines} = conn) do
     [method, target, _] =
       lines
       |> Enum.reverse()

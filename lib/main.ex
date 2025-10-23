@@ -1,5 +1,6 @@
 defmodule Server do
   use Application
+
   alias Server.{
     Connection,
     Request,
@@ -26,7 +27,7 @@ defmodule Server do
     client
     |> Connection.new()
     |> serve()
-    |> Request.cast_to_request()
+    |> Request.parse_request()
     |> Router.route()
 
     :gen_tcp.close(client)
