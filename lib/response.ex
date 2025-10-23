@@ -7,15 +7,19 @@ defmodule Server.Response do
     not_found: {404, "Not Found"}
   }
 
-  def send(%Conn{client: client}, status) do
+  def send(%Conn{client: client} = conn, status) do
     {code, desc} = Map.fetch!(@status, status)
     :ok = :gen_tcp.send(client, "HTTP/1.1 #{code} #{desc}\r\n\r\n")
+
+    conn
   end
 
-  def send(%Conn{client: client}, status, body) do
+  def send(%Conn{client: client} = conn, status, body) do
     {code, desc} = Map.fetch!(@status, status)
 
     # TODO: ideally, don't hardcode content type here
     :ok = :gen_tcp.send(client,"HTTP/1.1 #{code} #{desc}\r\nContent-Type: text/plain\r\nContent-Length: #{String.length(body)}\r\n\r\n#{body}")
+
+    conn
   end
 end

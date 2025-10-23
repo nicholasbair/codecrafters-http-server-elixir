@@ -11,4 +11,6 @@ defmodule Server.Connection do
       client: client
     }
   end
+
+  def close(conn), do: :gen_tcp.close(conn.client)
 end

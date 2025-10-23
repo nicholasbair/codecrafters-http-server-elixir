@@ -21,9 +21,6 @@ defmodule Server.Request do
 
   @spec parse_request(Connection.t()) :: Connection.t()
   def parse_request(%Connection{raw_request: lines} = conn) do
-
-    IO.inspect(lines)
-
     # TODO: this prob won't work for request bodies
     {[first], rest} =
       lines
@@ -49,15 +46,23 @@ defmodule Server.Request do
     Enum.reduce(lines, [], fn line, acc ->
       case line do
         "\r\n" -> acc
-        _ -> [String.replace(line, "\r\n", "") | acc ]
+        _ -> [sanitize_line(line) | acc]
       end
     end)
+  end
+
+  @spec sanitize_line(String.t()) :: String.t()
+  defp sanitize_line(line) do
+    line
+    |> String.replace("\r\n", "")
+    |> String.trim()
   end
 
   @spec parse_method_target_protocol(String.t()) :: {String.t(), String.t(), String.t()}
   defp parse_method_target_protocol(line) do
     line
-    |> String.split(" ", trim: true)
+    |> String.split(" ")
+    |> Enum.map(&sanitize_line/1)
     |> List.to_tuple()
   end
 
@@ -66,6 +71,7 @@ defmodule Server.Request do
     Enum.reduce(lines, %{}, fn line, acc ->
       line
       |> String.split(":", parts: 2)
+      |> Enum.map(&sanitize_line/1)
       |> List.to_tuple()
       |> then(fn {k, v} -> Map.put(acc, k, v) end)
     end)

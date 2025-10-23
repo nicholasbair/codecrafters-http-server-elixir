@@ -29,8 +29,7 @@ defmodule Server do
     |> serve()
     |> Request.parse_request()
     |> Router.route()
-
-    :gen_tcp.close(client)
+    |> Connection.close()
 
     loop_acceptor(socket)
   end
