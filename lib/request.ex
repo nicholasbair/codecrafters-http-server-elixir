@@ -30,8 +30,7 @@ defmodule Server.Request do
     {method, target, protocol} = parse_method_target_protocol(first)
     headers = parse_headers(rest)
 
-    req =
-      %__MODULE__{
+    req = %__MODULE__{
         method: method,
         request_target: target,
         protocol: protocol,

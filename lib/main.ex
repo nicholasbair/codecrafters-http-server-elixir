@@ -24,16 +24,19 @@ defmodule Server do
   defp loop_acceptor(socket) do
     {:ok, client} = :gen_tcp.accept(socket)
 
-    client
-    |> Connection.new()
-    |> serve()
-    |> Request.parse_request()
-    |> Router.route()
-    |> Connection.close()
+    Task.start(fn ->
+      client
+      |> Connection.new()
+      |> serve()
+      |> Request.parse_request()
+      |> Router.route()
+      |> Connection.close()
+    end)
 
     loop_acceptor(socket)
   end
 
+  @spec serve(Connection.t()) :: Connection.t()
   defp serve(%Connection{client: socket, raw_request: lines} = conn) do
     new_line = read_line(socket)
     conn = %{conn | raw_request: [new_line | lines]}
@@ -44,7 +47,7 @@ defmodule Server do
     end
   end
 
-  # Note: passing length=0 (2nd arg) to recv means all available bytes are returned
+  @spec read_line(port()) :: String.t()
   defp read_line(socket) do
     {:ok, data} = :gen_tcp.recv(socket, 0)
     data

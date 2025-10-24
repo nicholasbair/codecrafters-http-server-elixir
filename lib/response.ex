@@ -7,6 +7,7 @@ defmodule Server.Response do
     not_found: {404, "Not Found"}
   }
 
+  @spec send(Conn.t(), atom()) :: Conn.t()
   def send(%Conn{client: client} = conn, status) do
     {code, desc} = Map.fetch!(@status, status)
     :ok = :gen_tcp.send(client, "HTTP/1.1 #{code} #{desc}\r\n\r\n")
@@ -14,6 +15,7 @@ defmodule Server.Response do
     conn
   end
 
+  @spec send(Conn.t(), atom(), String.t()) :: Conn.t()
   def send(%Conn{client: client} = conn, status, body) do
     {code, desc} = Map.fetch!(@status, status)
 

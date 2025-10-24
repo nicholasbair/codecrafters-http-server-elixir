@@ -8,6 +8,7 @@ defmodule Server.Router do
     Response
   }
 
+  @spec route(Connection.t()) :: Connection.t()
   def route(%Connection{request: %{request_target: path}} = conn) do
     cond do
       String.match?(path, ~r/\/echo/) -> EchoController.echo(conn)
