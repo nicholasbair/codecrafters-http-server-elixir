@@ -19,19 +19,19 @@ defmodule Server.Response do
   def send(%Conn{client: client} = conn, status, body, content_type \\ "text/plain") do
     {code, desc} = Map.fetch!(@status, status)
 
-    # :ok = :gen_tcp.send(client,"HTTP/1.1 #{code} #{desc}\r\nContent-Type: #{content_type}\r\nContent-Length: #{String.length(body)}\r\n\r\n#{body}")
-    :ok = :gen_tcp.send(client, build_raw_response(code, desc, body, content_type))
+    :ok = :gen_tcp.send(client,"HTTP/1.1 #{code} #{desc}\r\nContent-Type: #{content_type}\r\nContent-Length: #{String.length(body)}\r\n\r\n#{body}")
+    # :ok = :gen_tcp.send(client, build_raw_response(code, desc, body, content_type))
 
     conn
   end
 
-  defp build_raw_response(code, desc, body, content_type) do
-    """
-    HTTP/1.1 #{code} #{desc}
-    Content-Type: #{content_type}
-    Content-Length: #{String.length(body)}
+  # defp build_raw_response(code, desc, body, content_type) do
+  #   """
+  #   HTTP/1.1 #{code} #{desc}
+  #   Content-Type: #{content_type}
+  #   Content-Length: #{String.length(body)}
 
-    #{body}
-    """
-  end
+  #   #{body}
+  #   """
+  # end
 end
