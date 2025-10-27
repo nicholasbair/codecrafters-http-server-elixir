@@ -4,7 +4,9 @@ defmodule Server.Response do
 
   @status %{
     ok: {200, "OK"},
-    not_found: {404, "Not Found"}
+    created: {201, "Created"},
+    not_found: {404, "Not Found"},
+    server_error: {500, "Internal Server Error"}
   }
 
   @spec send(Conn.t(), atom()) :: Conn.t()

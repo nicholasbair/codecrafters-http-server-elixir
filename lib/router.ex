@@ -14,6 +14,10 @@ defmodule Server.Router do
     FileController.get_file(conn, file)
   end
 
+  def route(%Connection{request: %{method: "POST", request_target: "/files/" <> file}} = conn) do
+    FileController.create_file(conn, file)
+  end
+
   def route(%Connection{request: %{method: "GET", request_target: "/echo/" <> param}} = conn) do
     EchoController.echo(conn, param)
   end

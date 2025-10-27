@@ -6,6 +6,7 @@ defmodule Server.Request do
     method: String.t(),
     request_target: String.t(),
     protocol: String.t(),
+    body: String.t(),
     headers: headers()
   }
 
@@ -16,38 +17,26 @@ defmodule Server.Request do
     :method,
     :request_target,
     :protocol,
+    :body,
     headers: []
   ]
 
   @spec parse_request(Connection.t()) :: Connection.t()
-  def parse_request(%Connection{raw_request: lines} = conn) do
-    # TODO: this prob won't work for request bodies
-    {[first], rest} =
-      lines
-      |> sanitize_lines()
-      |> Enum.split(1)
-
+  def parse_request(%Connection{raw_request: raw} = conn) do
+    [rest, body] = String.split(raw, "\r\n\r\n")
+    [first | headers] = String.split(rest, "\r\n", trim: true)
     {method, target, protocol} = parse_method_target_protocol(first)
-    headers = parse_headers(rest)
+    parsed_headers = parse_headers(headers)
 
     req = %__MODULE__{
         method: method,
         request_target: target,
         protocol: protocol,
-        headers: headers
+        headers: parsed_headers,
+        body: body
       }
 
     %{conn | request: req}
-  end
-
-  @spec sanitize_lines([String.t()]) :: String.t()
-  defp sanitize_lines(lines) do
-    Enum.reduce(lines, [], fn line, acc ->
-      case line do
-        "\r\n" -> acc
-        _ -> [sanitize_line(line) | acc]
-      end
-    end)
   end
 
   @spec sanitize_line(String.t()) :: String.t()
