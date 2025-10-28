@@ -6,14 +6,14 @@ defmodule Server.Connection do
     client: port(),
     request: Request.t(),
     temp_dir: String.t(),
-    raw_request: [String.t()]
+    raw_request: String.t()
   }
 
   defstruct [
     :client,
     :request,
     :temp_dir,
-    raw_request: []
+    :raw_request
   ]
 
   @spec new(port(), String.t()) :: t()

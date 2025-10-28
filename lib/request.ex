@@ -18,7 +18,7 @@ defmodule Server.Request do
     :request_target,
     :protocol,
     :body,
-    headers: []
+    headers: %{}
   ]
 
   @spec parse_request(Connection.t()) :: Connection.t()
