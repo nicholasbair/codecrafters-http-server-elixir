@@ -31,7 +31,7 @@ defmodule Server.Response do
   end
 
   @spec build_response(Conn.t(), atom()) :: String.t()
-  defp build_response(%Conn{} = conn, status) do
+  defp build_response(%Conn{}, status) do
     build_request_line(status) <> "\r\n"
   end
 
@@ -46,12 +46,12 @@ defmodule Server.Response do
     "HTTP/1.1 #{code} #{desc}\r\n"
   end
 
-  @spec build_headers(Request.t(), String.t()) :: String.t()
-  defp build_headers(%Request{headers: %{"Accept-Encoding": "gzip"}}, content_type, content_length \\ 0) do
+  @spec build_headers(Request.t(), String.t(), integer()) :: String.t()
+  defp build_headers(%Request{headers: %{"Accept-Encoding": "gzip"}}, content_type, content_length) do
     "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\nContent-Encoding: gzip\r\n"
   end
 
-  defp build_headers(%Request{}, content_type, content_length \\ 0) do
+  defp build_headers(%Request{}, content_type, content_length) do
     "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n"
   end
 end
