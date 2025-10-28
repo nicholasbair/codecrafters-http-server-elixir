@@ -31,7 +31,6 @@ defmodule Server do
       |> serve()
       |> Request.parse_request()
       |> Router.route()
-      |> Connection.close()
     end)
 
     loop_acceptor(socket, temp_dir)

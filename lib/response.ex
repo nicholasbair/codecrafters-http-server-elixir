@@ -33,7 +33,7 @@ defmodule Server.Response do
 
   @spec build_response(Conn.t(), atom()) :: String.t()
   defp build_response(%Conn{}, status) do
-    build_request_line(status) <> "\r\n"
+    build_response_line(status) <> "\r\n"
   end
 
   @spec build_response(Conn.t(), atom(), String.t(), String.t()) :: String.t()
@@ -43,15 +43,15 @@ defmodule Server.Response do
     case should_encode_body?(accepted_encodings) do
       true ->
         encoded_body = :zlib.gzip(body)
-        build_request_line(status) <> build_headers(content_type, String.length(encoded_body), [{"Content-Encoding", @supported_encoding}]) <> "\r\n#{encoded_body}"
+        build_response_line(status) <> build_headers(content_type, String.length(encoded_body), [{"Content-Encoding", @supported_encoding}]) <> "\r\n#{encoded_body}"
 
       false ->
-        build_request_line(status) <> build_headers(content_type, String.length(body)) <> "\r\n#{body}"
+        build_response_line(status) <> build_headers(content_type, String.length(body)) <> "\r\n#{body}"
     end
   end
 
-  @spec build_request_line(atom()) :: String.t()
-  defp build_request_line(status) do
+  @spec build_response_line(atom()) :: String.t()
+  defp build_response_line(status) do
     {code, desc} = Map.fetch!(@status, status)
     "HTTP/1.1 #{code} #{desc}\r\n"
   end
