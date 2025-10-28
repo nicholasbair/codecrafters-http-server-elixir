@@ -1,7 +1,6 @@
 defmodule Server.Response do
 
   alias Server.Connection, as: Conn
-  alias Server.Request
 
   @status %{
     ok: {200, "OK"},
@@ -9,6 +8,8 @@ defmodule Server.Response do
     not_found: {404, "Not Found"},
     server_error: {500, "Internal Server Error"}
   }
+
+  @supported_encoding "gzip"
 
   @spec send(Conn.t(), atom()) :: Conn.t()
   def send(%Conn{client: client} = conn, status) do
@@ -36,8 +37,17 @@ defmodule Server.Response do
   end
 
   @spec build_response(Conn.t(), atom(), String.t(), String.t()) :: String.t()
-  defp build_response(%Conn{} = conn, status, body, content_type) do
-    build_request_line(status) <> build_headers(conn.request, content_type, String.length(body)) <> "\r\n#{body}"
+  defp build_response(%Conn{request: %{headers: headers}}, status, body, content_type) do
+    accepted_encodings = Map.get(headers, "Accept-Encoding", [])
+
+    case should_encode_body?(accepted_encodings) do
+      true ->
+        encoded_body = :zlib.gzip(body)
+        build_request_line(status) <> build_headers(content_type, String.length(encoded_body), [{"Content-Encoding", @supported_encoding}]) <> "\r\n#{encoded_body}"
+
+      false ->
+        build_request_line(status) <> build_headers(content_type, String.length(body)) <> "\r\n#{body}"
+    end
   end
 
   @spec build_request_line(atom()) :: String.t()
@@ -46,22 +56,19 @@ defmodule Server.Response do
     "HTTP/1.1 #{code} #{desc}\r\n"
   end
 
-  @spec build_headers(Request.t(), String.t(), integer()) :: String.t()
-  defp build_headers(%Request{headers: %{"Accept-Encoding" => encoding}}, content_type, content_length) do
-    case "gzip" in parse_encoding_options(encoding) do
-      true -> "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\nContent-Encoding: gzip\r\n"
-      false -> "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n"
-    end
+  @spec build_headers(String.t(), integer(), [{String.t(), String.t()}]) :: String.t()
+  defp build_headers(content_type, content_length, additional \\ []) do
+    Enum.reduce(
+      additional,
+      "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n",
+      fn {k, v}, acc ->
+        acc <> "#{k}: #{v}\r\n"
+      end
+    )
   end
 
-  defp build_headers(%Request{}, content_type, content_length) do
-    "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n"
-  end
-
-  @spec parse_encoding_options(String.t()) :: [String.t()]
-  defp parse_encoding_options(options) do
-    options
-    |> String.split(",", trim: true)
-    |> Enum.map(&String.trim/1)
+  @spec should_encode_body?([String.t()]) :: boolean()
+  defp should_encode_body?(accepted_encodings) do
+    @supported_encoding in accepted_encodings
   end
 end

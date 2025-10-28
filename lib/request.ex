@@ -10,7 +10,7 @@ defmodule Server.Request do
     headers: headers()
   }
 
-  @type header :: String.t()
+  @type header :: String.t() | [String.t()]
   @type headers :: %{optional(String.t()) => header()}
 
   defstruct [
@@ -61,7 +61,19 @@ defmodule Server.Request do
       |> String.split(":", parts: 2)
       |> Enum.map(&sanitize_line/1)
       |> List.to_tuple()
+      |> maybe_further_parse()
       |> then(fn {k, v} -> Map.put(acc, k, v) end)
     end)
   end
+
+  @spec maybe_further_parse({String.t(), String.t()}) :: {String.t(), String.t() | [String.t()]}
+  defp maybe_further_parse({"Accept-Encoding" = key, val}) do
+    parsed_val =
+      val
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
+
+    {key, parsed_val}
+  end
+  defp maybe_further_parse(t), do: t
 end
