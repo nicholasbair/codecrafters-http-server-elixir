@@ -48,7 +48,7 @@ defmodule Server.Response do
 
   @spec build_headers(Request.t(), String.t(), integer()) :: String.t()
   defp build_headers(%Request{headers: %{"Accept-Encoding" => encoding}}, content_type, content_length) do
-    case "gzip" in String.split(encoding, ",", trim: true) do
+    case "gzip" in parse_encoding_options(encoding) do
       true -> "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\nContent-Encoding: gzip\r\n"
       false -> "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n"
     end
@@ -56,5 +56,12 @@ defmodule Server.Response do
 
   defp build_headers(%Request{}, content_type, content_length) do
     "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n"
+  end
+
+  @spec parse_encoding_options(String.t()) :: [String.t()]
+  defp parse_encoding_options(options) do
+    options
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
   end
 end
