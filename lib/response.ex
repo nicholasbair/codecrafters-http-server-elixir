@@ -47,8 +47,11 @@ defmodule Server.Response do
   end
 
   @spec build_headers(Request.t(), String.t(), integer()) :: String.t()
-  defp build_headers(%Request{headers: %{"Accept-Encoding" => "gzip"}}, content_type, content_length) do
-    "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\nContent-Encoding: gzip\r\n"
+  defp build_headers(%Request{headers: %{"Accept-Encoding" => encoding}}, content_type, content_length) do
+    case "gzip" in String.split(encoding, ",", trim: true) do
+      true -> "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\nContent-Encoding: gzip\r\n"
+      false -> "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n"
+    end
   end
 
   defp build_headers(%Request{}, content_type, content_length) do
