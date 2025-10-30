@@ -12,7 +12,9 @@ defmodule Server.Controller.FileController do
 
   @spec get_file(Connection.t(), String.t()) :: Connection.t()
   def get_file(%Connection{} = conn, filename) do
-    file_path = Path.join(conn.temp_dir, filename)
+    file_path =
+      Application.get_env(Server, :temp_dir)
+      |> Path.join(filename)
 
     case File.read(file_path) do
       {:ok, content} -> Response.send(conn, :ok, content, "application/octet-stream")
@@ -22,7 +24,9 @@ defmodule Server.Controller.FileController do
 
   @spec create_file(Connection.t(), String.t()) :: Connection.t()
   def create_file(%Connection{} = conn, filename) do
-    file_path = Path.join(conn.temp_dir, filename)
+    file_path =
+      Application.get_env(Server, :temp_dir)
+      |> Path.join(filename)
 
     case File.write(file_path, conn.request.body) do
       :ok ->

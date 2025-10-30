@@ -4,23 +4,20 @@ defmodule Server.Connection do
 
   @type t :: %__MODULE__{
     client: port(),
-    request: Request.t(),
-    temp_dir: String.t(),
-    raw_request: String.t()
+    raw_request: String.t(),
+    request: Request.t()
   }
 
   defstruct [
     :client,
-    :request,
-    :temp_dir,
-    :raw_request
+    raw_request: "",
+    request: %Request{}
   ]
 
-  @spec new(port(), String.t()) :: t()
-  def new(client, temp_dir) do
+  @spec new(port()) :: t()
+  def new(client) do
     %__MODULE__{
-      client: client,
-      temp_dir: temp_dir
+      client: client
     }
   end
 
