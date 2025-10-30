@@ -32,21 +32,36 @@ defmodule Server.Response do
   end
 
   @spec build_response(Conn.t(), atom()) :: String.t()
-  defp build_response(%Conn{}, status) do
-    build_response_line(status) <> "\r\n"
+  defp build_response(%Conn{} = conn, status) do
+    close_header = maybe_send_close_header(conn)
+    build_response_line(status) <> build_headers(close_header) <> "\r\n"
   end
 
   @spec build_response(Conn.t(), atom(), String.t(), String.t()) :: String.t()
-  defp build_response(%Conn{request: %{headers: headers}}, status, body, content_type) do
+  defp build_response(%Conn{request: %{headers: headers}} = conn, status, body, content_type) do
     accepted_encodings = Map.get(headers, "Accept-Encoding", [])
+    close_header = maybe_send_close_header(conn)
 
     case should_encode_body?(accepted_encodings) do
       true ->
         encoded_body = :zlib.gzip(body)
-        build_response_line(status) <> build_headers(content_type, String.length(encoded_body), [{"Content-Encoding", @supported_encoding}]) <> "\r\n#{encoded_body}"
+        headers =
+          build_headers([
+            {"Content-Type", "#{content_type}"},
+            {"Content-Length", "#{String.length(encoded_body)}"},
+            {"Content-Encoding", @supported_encoding}
+          ] ++ close_header)
+
+        build_response_line(status) <> headers <> "\r\n#{encoded_body}"
 
       false ->
-        build_response_line(status) <> build_headers(content_type, String.length(body)) <> "\r\n#{body}"
+        headers =
+          build_headers([
+            {"Content-Type", "#{content_type}"},
+            {"Content-Length", "#{String.length(body)}"}
+          ] ++ close_header)
+
+        build_response_line(status) <> headers <> "\r\n#{body}"
     end
   end
 
@@ -56,19 +71,24 @@ defmodule Server.Response do
     "HTTP/1.1 #{code} #{desc}\r\n"
   end
 
-  @spec build_headers(String.t(), integer(), [{String.t(), String.t()}]) :: String.t()
-  defp build_headers(content_type, content_length, additional \\ []) do
+  @spec build_headers([{String.t(), String.t()}]) :: String.t()
+  defp build_headers(headers) when length(headers) > 0 do
     Enum.reduce(
-      additional,
-      "Content-Type: #{content_type}\r\nContent-Length: #{content_length}\r\n",
+      headers,
+      "",
       fn {k, v}, acc ->
         acc <> "#{k}: #{v}\r\n"
       end
     )
   end
+  defp build_headers(_), do: ""
 
   @spec should_encode_body?([String.t()]) :: boolean()
   defp should_encode_body?(accepted_encodings) do
     @supported_encoding in accepted_encodings
   end
+
+  @spec maybe_send_close_header(Conn.t()) :: [{String.t(), String.t()}]
+  defp maybe_send_close_header(%Conn{keep_alive?: true}), do: []
+  defp maybe_send_close_header(%Conn{keep_alive?: false}), do: [{"Connection", "close"}]
 end

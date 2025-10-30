@@ -14,8 +14,8 @@ defmodule Server.Request do
   @type header :: String.t() | [String.t()]
   @type headers :: %{optional(String.t()) => header()}
 
-  @type action :: :continue | :continue_body | :complete
-  @type state :: :request_line_complete | :headers_complete
+  @type action :: :continue | :complete
+  @type state :: :request_line_complete | :headers_complete | {:headers_complete, non_neg_integer()}
 
   defstruct [
     :method,
@@ -26,10 +26,37 @@ defmodule Server.Request do
     headers: %{}
   ]
 
-  @spec handle_request(Conn.t(), String.t()) :: {Conn.t(), action()}
-  def handle_request(%Conn{request: req} = conn, new_line) do
+  @spec handle_request(Conn.t()) :: {Conn.t(), action()}
+  def handle_request(%Conn{request: req} = conn) do
+    bytes = get_bytes(req.state)
+    new_line = read_data(conn.client, bytes)
     {updated_req, action} = parse_line(req, new_line)
-    {%{conn | request: updated_req}, action}
+
+    {
+      %{conn |
+        raw_request: conn.raw_request <> new_line,
+        request: updated_req,
+        keep_alive?: keep_alive?(updated_req)
+      },
+      action
+    }
+  end
+
+  @spec read_data(port(), nil | non_neg_integer()) :: String.t()
+  defp read_data(socket, nil), do: read_line(socket)
+  defp read_data(socket, bytes), do: read_bytes(socket, bytes)
+
+  @spec read_line(port()) :: String.t()
+  defp read_line(socket) do
+    {:ok, data} = :gen_tcp.recv(socket, 0)
+    data
+  end
+
+  @spec read_bytes(port(), non_neg_integer()) :: String.t()
+  defp read_bytes(socket, need_bytes) do
+    :ok = :inet.setopts(socket, packet: 0)
+    {:ok, data} = :gen_tcp.recv(socket, need_bytes, 5_000)
+    data
   end
 
   @spec parse_line(t(), String.t()) :: {t(), action()}
@@ -51,7 +78,7 @@ defmodule Server.Request do
   def parse_line(%__MODULE__{method: method, body: ""} = req, "\r\n") when method in ["POST", "PUT", "PATCH"] do
     case Map.get(req.headers, "Content-Length") do
       nil -> {req, :complete}
-      _ -> {%{req | state: :headers_complete}, :continue_body}
+      need_bytes -> {%{req | state: {:headers_complete, need_bytes}}, :continue}
     end
   end
 
@@ -60,15 +87,16 @@ defmodule Server.Request do
     {%{req | headers: Map.put(req.headers, k, v)}, :continue}
   end
 
-  def parse_line(%__MODULE__{method: method, state: :headers_complete} = req, new_line) when method in ["POST", "PUT", "PATCH"] do
+  def parse_line(%__MODULE__{method: method, state: {:headers_complete, _bytes}} = req, new_line) when method in ["POST", "PUT", "PATCH"] do
     content_length = Map.get(req.headers, "Content-Length")
     updated_body = req.body <> new_line
+    curr_bytes = String.length(updated_body)
 
-    case String.length(updated_body) >= content_length do
+    case curr_bytes >= content_length do
       true ->
         {%{req | body: updated_body}, :complete}
       false ->
-        {%{req | body: updated_body, state: :headers_complete}, :continue_body}
+        {%{req | body: updated_body, state: {:headers_complete, content_length - curr_bytes}}, :continue}
     end
   end
 
@@ -110,6 +138,12 @@ defmodule Server.Request do
     parsed_val = String.to_integer(val)
     {key, parsed_val}
   end
-
   defp maybe_further_parse(t), do: t
+
+  @spec get_bytes(state()) :: non_neg_integer() | nil
+  defp get_bytes({:headers_complete, need_bytes}), do: need_bytes
+  defp get_bytes(_), do: nil
+
+  defp keep_alive?(%__MODULE__{headers: %{"Connection" => "close"}}), do: false
+  defp keep_alive?(_req), do: true
 end

@@ -1,8 +1,8 @@
 defmodule Server do
   use Application
 
+  alias Server.Connection, as: Conn
   alias Server.{
-    Connection,
     Request,
     Router
   }
@@ -40,45 +40,20 @@ defmodule Server do
 
   defp handle_request(client) do
     client
-    |> Connection.new()
+    |> Conn.new()
     |> serve()
     |> Router.route()
+    |> Conn.maybe_close()
 
     handle_request(client)
   end
 
-  @spec serve(Connection.t()) :: Connection.t()
-  defp serve(%Connection{client: socket, raw_request: lines} = conn, bytes \\ nil) do
-    new_line = read_data(socket, bytes)
-    conn = %{conn | raw_request: lines <> new_line}
-
-    case Request.handle_request(conn, new_line) do
-      {conn, :complete} ->
-        conn
-
-      {conn, :continue_body} ->
-        conn.request.headers
-        |> Map.get("Content-Length")
-        |> then(&serve(conn, &1))
-
-      {conn, :continue} ->
-        serve(conn)
+  @spec serve(Conn.t()) :: Conn.t()
+  defp serve(%Conn{} = conn) do
+    case Request.handle_request(conn) do
+      {conn, :complete} -> conn
+      {conn, :continue} -> serve(conn)
     end
-  end
-
-  defp read_data(socket, nil), do: read_line(socket)
-  defp read_data(socket, bytes), do: read_bytes(socket, bytes)
-
-  @spec read_line(port()) :: String.t()
-  defp read_line(socket) do
-    {:ok, data} = :gen_tcp.recv(socket, 0)
-    data
-  end
-
-  defp read_bytes(socket, number) do
-    :ok = :inet.setopts(socket, packet: 0)
-    {:ok, data} = :gen_tcp.recv(socket, number, 5_000)
-    data
   end
 
   defp maybe_get_temp_dir(["--directory", dir]), do: dir
